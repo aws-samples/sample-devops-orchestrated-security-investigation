@@ -35,8 +35,6 @@ applied automatically.
 
 ![Architecture](docs/architecture.png)
 
-*Drawn with the official [AWS Architecture Icons](https://aws.amazon.com/architecture/icons/); source: [`docs/architecture_diagram.py`](docs/architecture_diagram.py).*
-
 The end-to-end flow, validated live:
 
 1. A deliberately-flawed Flask app runs on **ALB → ECS Fargate → DynamoDB** with
