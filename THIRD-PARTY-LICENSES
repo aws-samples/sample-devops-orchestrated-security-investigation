@@ -1,0 +1,57 @@
+Third-Party Licenses
+
+This sample does not vendor (bundle) any third-party source code. The runtime
+dependencies below are fetched at build time by pip (see app/requirements.txt
+and a2a-bridge/requirements.txt), and the container base image is pulled from
+the public Amazon ECR mirror at build time (see app/Dockerfile). They are listed
+here for transparency and attribution.
+
+Python runtime dependencies: app (app/requirements.txt)
+-------------------------------------------------------
+Flask 3.1.3
+  License: BSD-3-Clause
+  Project: https://github.com/pallets/flask
+
+boto3 1.34.162
+  License: Apache-2.0
+  Project: https://github.com/boto/boto3
+
+gunicorn 22.0.0
+  License: MIT
+  Project: https://github.com/benoitc/gunicorn
+
+Python runtime dependencies: A2A bridge (a2a-bridge/requirements.txt)
+---------------------------------------------------------------------
+bedrock-agentcore 1.25.2 (with the a2a and strands-agents extras)
+  License: Apache-2.0
+  Project: https://github.com/aws/bedrock-agentcore-sdk-python
+
+strands-agents 1.62.0
+  License: Apache-2.0
+  Project: https://github.com/strands-agents/harness-sdk
+
+boto3 1.43.123
+  License: Apache-2.0
+  Project: https://github.com/boto/boto3
+
+botocore 1.43.123 (with the crt extra)
+  License: Apache-2.0
+  Project: https://github.com/boto/botocore
+
+The bridge is deployed with the AgentCore CLI, which scaffolds its own Python
+project and resolves these packages (and their transitive dependencies) when
+you build the runtime. a2a-bridge/requirements.txt and a2a-bridge/Dockerfile
+are provided for reference.
+
+Container base image (app/Dockerfile; a2a-bridge/Dockerfile for reference)
+--------------------------------------------------------------------------
+python:3.12-slim (pulled from public.ecr.aws/docker/library/python)
+  Python interpreter: PSF License
+  Debian base OS packages: various (predominantly GPL, LGPL, and permissive
+    licenses per Debian)
+
+No additional OS packages are installed on top of the base image.
+
+Note: no prebuilt container image is distributed in this repository. Consumers
+build the image themselves from the Dockerfile, at which point the licenses
+above apply to their locally built artifact.
