@@ -35,6 +35,7 @@ applied automatically.
 
 ![Architecture](docs/architecture.png)
 
+*Drawn with the official [AWS Architecture Icons](https://aws.amazon.com/architecture/icons/); source: [`docs/architecture_diagram.py`](docs/architecture_diagram.py).*
 
 The end-to-end flow, validated live:
 
@@ -471,7 +472,8 @@ done, revert the app:
 ├── deploy.sh                      # build image locally, push to ECR, deploy the stack
 ├── teardown.sh                    # delete the stack and app image; prints manual removals
 ├── docs/
-│   └── architecture.png           # the architecture diagram embedded above
+│   ├── architecture.png           # the architecture diagram embedded above
+│   └── architecture_diagram.py    # regenerates the diagram from the official AWS icons
 ├── app/                           # the deliberately-flawed Flask app
 │   ├── app.py                     # ALB→Fargate→DynamoDB service; the vulnerable route
 │   ├── Dockerfile                 # image built locally by deploy.sh

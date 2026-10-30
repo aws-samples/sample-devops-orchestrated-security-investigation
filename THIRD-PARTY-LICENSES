@@ -52,6 +52,17 @@ python:3.12-slim (pulled from public.ecr.aws/docker/library/python)
 
 No additional OS packages are installed on top of the base image.
 
+Documentation tooling (docs/architecture_diagram.py only; not part of the sample)
+-------------------------------------------------------------------------------
+diagrams 0.25.1
+  License: MIT
+  Project: https://github.com/mingrammer/diagrams
+
+AWS Architecture Icons
+  Used in docs/architecture.png under the AWS terms for architecture diagrams.
+  The icon files are not included in this repository; download them from
+  https://aws.amazon.com/architecture/icons/
+
 Note: no prebuilt container image is distributed in this repository. Consumers
 build the image themselves from the Dockerfile, at which point the licenses
 above apply to their locally built artifact.
