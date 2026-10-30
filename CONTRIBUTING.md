@@ -6,6 +6,10 @@ documentation, we greatly value feedback and contributions from our community.
 Please read through this document before submitting any issues or pull requests to ensure we have all the necessary
 information to effectively respond to your bug report or contribution.
 
+> **Note:** this sample is **intentionally vulnerable** and for sandbox use only. The planted regression and standing
+> conditions listed in [`SECURITY.md`](SECURITY.md) are deliberate; please do not open issues or pull requests that
+> "fix" them.
+
 
 ## Reporting Bugs/Feature Requests
 
@@ -51,7 +55,7 @@ opensource-codeofconduct@amazon.com with any additional questions or comments.
 
 
 ## Security issue notifications
-If you discover a potential security issue in this project we ask that you notify AWS/Amazon Security via our [vulnerability reporting page](http://aws.amazon.com/security/vulnerability-reporting/). Please do **not** create a public github issue.
+If you discover a potential security issue in this project we ask that you notify AWS/Amazon Security via our [vulnerability reporting page](https://aws.amazon.com/security/vulnerability-reporting/). Please do **not** create a public github issue.
 
 
 ## Licensing

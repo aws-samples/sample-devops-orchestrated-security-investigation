@@ -1,0 +1,15 @@
+# Rendered artifacts that may contain account identifiers
+prompts/rendered/
+*.zip
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Local env
+.env
+*.local
+
+# OS
+.DS_Store

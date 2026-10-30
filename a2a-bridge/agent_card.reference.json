@@ -1,0 +1,23 @@
+{
+  "_comment": "REFERENCE ONLY. The live agent card is auto-built by Strands from the Agent's name/description + its @tool skills in bridge.py and served at /.well-known/agent-card.json; its 'url' is auto-populated from AGENTCORE_RUNTIME_URL once deployed. This shows the shape to expect for the remote-agent registration step. Do not hand-edit and ship this as the card.",
+  "name": "nimbus-security-review-agent",
+  "description": "Read-only security reviewer. Given a code or configuration change implicated in an incident, runs an AWS Security Agent differential code review and returns the security findings (severity, risk type, location, confidence). Use when a DevOps investigation's root cause is a code or configuration change and you need an exposure assessment.",
+  "version": "0.1.0",
+  "capabilities": { "streaming": true },
+  "defaultInputModes": ["text"],
+  "defaultOutputModes": ["text"],
+  "skills": [
+    {
+      "id": "start_security_review",
+      "name": "Start a differential security review",
+      "description": "Uploads a unified diff and starts an AWS Security Agent differential review, returning a job id immediately (does not block).",
+      "tags": ["security", "code-review", "sast", "incident", "read-only"]
+    },
+    {
+      "id": "get_security_findings",
+      "name": "Get security review findings",
+      "description": "Checks an in-progress review and returns findings once complete (name, risk level, risk type, confidence).",
+      "tags": ["security", "code-review", "findings", "read-only"]
+    }
+  ]
+}

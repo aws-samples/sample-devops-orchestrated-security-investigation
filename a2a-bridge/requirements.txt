@@ -1,0 +1,10 @@
+# A2A bridge: a Strands agent hosted on AgentCore Runtime (A2A protocol).
+# In practice the bridge is deployed with the AgentCore CLI (`agentcore create`
+# scaffolds a Strands A2A project; drop bridge.py in as the entrypoint). These
+# are the runtime deps the bridge code imports, pinned to versions that resolve
+# together and include the `securityagent` boto3 client. Update the pins
+# deliberately (and re-test) rather than using open ranges.
+bedrock-agentcore[a2a,strands-agents]==1.25.2
+strands-agents==1.62.0
+boto3==1.43.123
+botocore[crt]==1.43.123

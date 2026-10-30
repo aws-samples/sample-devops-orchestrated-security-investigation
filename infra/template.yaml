@@ -1,0 +1,464 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Composed DevOps + Security agent sample. Synthetic ALB -> ECS Fargate ->
+  DynamoDB app with a 5xx alarm wired through SNS to a Lambda forwarder that
+  calls the AWS DevOps Agent webhook. Sandbox only, single region, intentionally
+  flawed. See SECURITY.md and THREAT-MODEL.md.
+
+Parameters:
+  NamePrefix:
+    Type: String
+    Default: nimbus
+    Description: Prefix for resource names.
+  ImageUri:
+    Type: String
+    Description: >
+      ECR image URI for the synthetic app, built and pushed locally by deploy.sh.
+      The image is built locally (not in-stack) on purpose: the DevOps Agent
+      security requirements forbid customer-controlled compute (e.g. CodeBuild)
+      in a monitored account, so this sample does not run CodeBuild in-stack.
+  WebhookSecretId:
+    Type: String
+    Description: >
+      Secrets Manager secret id holding {"url":...,"secret":...} for the DevOps
+      Agent webhook. Created out of band; never stored in stack outputs.
+  AllowedRegion:
+    Type: String
+    Default: us-east-1
+    Description: The single region this sample is pinned to.
+
+Rules:
+  RegionPin:
+    Assertions:
+      - Assert: !Equals [!Ref "AWS::Region", !Ref AllowedRegion]
+        AssertDescription: >
+          This sample is pinned to a single region. Deploy only in AllowedRegion.
+
+Resources:
+  # NOTE: the app image's ECR repository is created and owned by deploy.sh
+  # (with KMS encryption and scan-on-push), NOT by this stack. The image must
+  # exist in ECR before this stack's ECS task definition can reference it, so
+  # deploy.sh builds + pushes locally first and passes the image via the
+  # ImageUri parameter. We deliberately do NOT build in-stack: the DevOps Agent
+  # security requirements forbid customer-controlled compute
+  # (CodeBuild/CloudShell/SageMaker) in a monitored account.
+
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.42.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags: [{ Key: Name, Value: !Sub "${NamePrefix}-vpc" }]
+
+  # --- Networking (two public subnets for the ALB + Fargate tasks) ---
+  SubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.42.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+  SubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.42.2.0/24
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+  Igw:
+    Type: AWS::EC2::InternetGateway
+  IgwAttach:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties: { VpcId: !Ref Vpc, InternetGatewayId: !Ref Igw }
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: { VpcId: !Ref Vpc }
+  DefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: IgwAttach
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref Igw
+  AssocA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref SubnetA, RouteTableId: !Ref RouteTable }
+  AssocB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref SubnetB, RouteTableId: !Ref RouteTable }
+
+  # Every security group below declares its egress explicitly: without an
+  # egress rule, AWS allows all outbound traffic by default.
+  AlbSg:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ALB ingress (demo; public by design to generate traffic)
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: Public HTTP to the demo ALB (intentional; see SECURITY.md)
+      # Real egress (ALB -> tasks on 8080) is AlbToServiceEgress below; it is a
+      # separate resource because AlbSg and ServiceSg reference each other.
+      # This placeholder replaces the default allow-all rule.
+      SecurityGroupEgress:
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 127.0.0.1/32
+          Description: Placeholder that removes the default allow-all egress
+  AlbToServiceEgress:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !GetAtt AlbSg.GroupId
+      IpProtocol: tcp
+      FromPort: 8080
+      ToPort: 8080
+      DestinationSecurityGroupId: !GetAtt ServiceSg.GroupId
+      Description: ALB to the Fargate tasks (traffic + health checks) only
+  ServiceSg:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Fargate task ingress from the ALB only
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          SourceSecurityGroupId: !Ref AlbSg
+          Description: App port, from the ALB only
+      SecurityGroupEgress:
+        # The tasks only call AWS APIs over HTTPS: ECR, CloudWatch Logs and S3
+        # (through the VPC endpoints) and DynamoDB. DNS uses the VPC resolver,
+        # which security groups do not filter.
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS to AWS service APIs only
+
+  # --- VPC endpoints so Fargate tasks reach ECR / Logs over private AWS
+  # networking instead of the public internet. Without these, a public-subnet
+  # task racing the IGW route times out on ECR GetAuthorizationToken. ---
+  EndpointSg:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: HTTPS from the Fargate tasks to the VPC interface endpoints
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: !Ref ServiceSg
+          Description: HTTPS to the interface endpoints, from the Fargate tasks only
+      # Interface endpoints only answer requests; they never initiate outbound
+      # connections. This placeholder replaces the default allow-all egress.
+      SecurityGroupEgress:
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 127.0.0.1/32
+          Description: Placeholder that removes the default allow-all egress
+
+  EcrApiEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref Vpc
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ecr.api"
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: [!Ref SubnetA, !Ref SubnetB]
+      SecurityGroupIds: [!Ref EndpointSg]
+
+  EcrDkrEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref Vpc
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ecr.dkr"
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: [!Ref SubnetA, !Ref SubnetB]
+      SecurityGroupIds: [!Ref EndpointSg]
+
+  LogsEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref Vpc
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.logs"
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: [!Ref SubnetA, !Ref SubnetB]
+      SecurityGroupIds: [!Ref EndpointSg]
+
+  # S3 gateway endpoint: ECR image layers are served from S3.
+  S3Endpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref Vpc
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
+      VpcEndpointType: Gateway
+      RouteTableIds: [!Ref RouteTable]
+
+  Table:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${NamePrefix}-notes"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions: [{ AttributeName: id, AttributeType: S }]
+      KeySchema: [{ AttributeName: id, KeyType: HASH }]
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: alias/aws/dynamodb
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/ecs/${NamePrefix}-notes"
+      RetentionInDays: 7
+
+  TaskExecRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ecs-tasks.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ecs-tasks.amazonaws.com }
+            Action: sts:AssumeRole
+      # Permissions live in a customer managed policy (not an inline policy),
+      # scoped to the notes table only.
+      ManagedPolicyArns:
+        - !Ref TaskTablePolicy
+
+  TaskTablePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: !Sub "${NamePrefix} app task: read/write the notes table only"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: [dynamodb:Scan, dynamodb:PutItem, dynamodb:GetItem]
+            Resource: !GetAtt Table.Arn
+
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties: { ClusterName: !Sub "${NamePrefix}-cluster" }
+
+  TaskDef:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub "${NamePrefix}-notes"
+      Cpu: "256"
+      Memory: "512"
+      NetworkMode: awsvpc
+      RequiresCompatibilities: [FARGATE]
+      # Pin to x86_64 so it matches the linux/amd64 image deploy.sh builds.
+      RuntimePlatform:
+        CpuArchitecture: X86_64
+        OperatingSystemFamily: LINUX
+      ExecutionRoleArn: !GetAtt TaskExecRole.Arn
+      TaskRoleArn: !GetAtt TaskRole.Arn
+      ContainerDefinitions:
+        - Name: app
+          Image: !Ref ImageUri
+          PortMappings: [{ ContainerPort: 8080 }]
+          Environment:
+            - { Name: TABLE_NAME, Value: !Sub "${NamePrefix}-notes" }
+            - { Name: BREAK_APP, Value: "false" }
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: app
+
+  Alb:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Type: application
+      Subnets: [!Ref SubnetA, !Ref SubnetB]
+      SecurityGroups: [!Ref AlbSg]
+      LoadBalancerAttributes:
+        # Drop requests with malformed headers (CKV_AWS_131).
+        - Key: routing.http.drop_invalid_header_fields.enabled
+          Value: "true"
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      VpcId: !Ref Vpc
+      Port: 8080
+      Protocol: HTTP
+      TargetType: ip
+      HealthCheckPath: /health
+  # DEMO-ONLY EXCEPTION: plain HTTP, no TLS. This listener exists only so a
+  # throwaway sandbox demo can take public traffic without a domain or ACM
+  # certificate. Traffic is NOT encrypted in transit. Do not reuse this pattern
+  # for a real workload: add an HTTPS (443) listener with an ACM certificate and
+  # a TLS 1.2+ security policy, and redirect port 80 to HTTPS. Step-by-step:
+  # README.md, "Security" > "Plain HTTP is for the sandbox demo only".
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref Alb
+      Port: 80
+      Protocol: HTTP
+      DefaultActions: [{ Type: forward, TargetGroupArn: !Ref TargetGroup }]
+
+  Service:
+    Type: AWS::ECS::Service
+    DependsOn:
+      - Listener
+      - AlbToServiceEgress
+      - EcrApiEndpoint
+      - EcrDkrEndpoint
+      - LogsEndpoint
+      - S3Endpoint
+    Properties:
+      Cluster: !Ref Cluster
+      LaunchType: FARGATE
+      DesiredCount: 2
+      TaskDefinition: !Ref TaskDef
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          Subnets: [!Ref SubnetA, !Ref SubnetB]
+          SecurityGroups: [!Ref ServiceSg]
+      LoadBalancers:
+        - ContainerName: app
+          ContainerPort: 8080
+          TargetGroupArn: !Ref TargetGroup
+
+  # --- Incident pipeline: 5xx alarm -> SNS -> forwarder Lambda -> webhook ---
+  # Customer managed key for the alarm topic. The AWS managed alias/aws/sns key
+  # cannot be used here: its key policy does not let CloudWatch alarms call
+  # kms:GenerateDataKey / kms:Decrypt, so the alarm action would fail and the
+  # incident would never reach the forwarder.
+  AlarmTopicKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: !Sub "${NamePrefix} 5xx alarm topic encryption (sample; sandbox only)"
+      EnableKeyRotation: true
+      PendingWindowInDays: 7
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AccountAdministration
+            Effect: Allow
+            Principal: { AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root" }
+            Action: "kms:*"
+            Resource: "*"
+          - Sid: AllowCloudWatchAlarmsToPublish
+            Effect: Allow
+            Principal: { Service: cloudwatch.amazonaws.com }
+            Action: ["kms:Decrypt", "kms:GenerateDataKey*"]
+            Resource: "*"
+
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${NamePrefix}-5xx-topic"
+      # Encrypt at rest with the customer managed key above (CKV_AWS_26).
+      KmsMasterKeyId: !Ref AlarmTopicKey
+
+  Target5xxAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${NamePrefix}-target-5xx"
+      Namespace: AWS/ApplicationELB
+      MetricName: HTTPCode_Target_5XX_Count
+      Dimensions:
+        - { Name: LoadBalancer, Value: !GetAtt Alb.LoadBalancerFullName }
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  ForwarderRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      # Permissions live in a customer managed policy (not an inline policy),
+      # scoped to the webhook secret only.
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - !Ref ForwarderSecretPolicy
+
+  ForwarderSecretPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: !Sub "${NamePrefix} forwarder: read the DevOps Agent webhook secret only"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: secretsmanager:GetSecretValue
+            Resource: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${WebhookSecretId}*"
+
+  Forwarder:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${NamePrefix}-forwarder"
+      Runtime: python3.12
+      Handler: forwarder.handler
+      Role: !GetAtt ForwarderRole.Arn
+      Timeout: 15
+      Environment:
+        Variables:
+          WEBHOOK_SECRET_ID: !Ref WebhookSecretId
+      Code:
+        # deploy.sh packages forwarder/forwarder.py and sets this via --code.
+        ZipFile: "placeholder - replaced at deploy time"
+
+  ForwarderSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref AlarmTopic
+      Protocol: lambda
+      Endpoint: !GetAtt Forwarder.Arn
+  ForwarderPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Forwarder
+      Action: lambda:InvokeFunction
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref AlarmTopic
+
+Outputs:
+  AppUrl:
+    Description: Demo-only plain-HTTP URL (sandbox only; see the Listener comment and the README HTTPS upgrade steps)
+    Value: !Sub "http://${Alb.DNSName}"
+  ClusterName:
+    Value: !Ref Cluster
+  ServiceName:
+    Value: !GetAtt Service.Name
+  TaskDefinitionArn:
+    Value: !Ref TaskDef
+  AlarmName:
+    Value: !Ref Target5xxAlarm

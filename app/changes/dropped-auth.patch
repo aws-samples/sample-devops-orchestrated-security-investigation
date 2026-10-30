@@ -1,0 +1,12 @@
+diff --git a/app/app.py b/app/app.py
+--- a/app/app.py
++++ b/app/app.py
+@@ -83,8 +83,6 @@
+ def admin_create_note():
+     # Sensitive route. The healthy build requires authorization; the planted
+     # regression removes it. This is the diff the Security Agent reviews.
+-    if not _is_authorized(request):
+-        return jsonify({"error": "unauthorized"}), 401
+     body = request.get_json(force=True, silent=True) or {}
+     try:
+         # Create only: refuse to overwrite an existing note with the same id.
