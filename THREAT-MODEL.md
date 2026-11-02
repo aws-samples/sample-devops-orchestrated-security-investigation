@@ -47,7 +47,7 @@ sample code, MIT-0, not for production.
 | Webhook forgery / replay | HMAC signature over `timestamp:body`; signed timestamp for replay protection; signing secret in Secrets Manager; webhook URL is HTTPS |
 | Prompt injection via investigated content into the remote agent | The remote agent's system prompt treats investigated content as untrusted data; its tools can only start a review and read findings, which bounds the impact; see DevOps Agent prompt-injection guidance |
 | Secrets leaking into the repo or stack outputs | `scripts/lint-repo.sh` blocks hard-coded account IDs, access keys, routable IPs, and absolute home paths, and fails if a check cannot run; no secret in stack outputs |
-| Resources left running and costing money | 7-day log retention. `teardown.sh` deletes the app stack, the app ECR repository, task-definition revisions, the forwarder log group, and (when given the ids) the bridge runtime, its log group, and its stack. README "Tear down" lists the remaining manual removals (secret, SigV4 role, S3 bucket, CDK bootstrap, console registrations, Agent Spaces) |
+| Resources left running and costing money | 7-day log retention. `teardown.sh` deletes the app stack, the app ECR repository, task-definition revisions, the forwarder log group, and (when given the ids) the bridge runtime, its log group, and its stack. `docs/TEARDOWN.md` lists the remaining manual removals (secret, SigV4 role, S3 bucket, CDK bootstrap, console registrations, Agent Spaces) |
 
 ## 5. Blast-radius fence
 

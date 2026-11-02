@@ -39,7 +39,7 @@ Agent Space:
   * list_findings(agentSpaceId, codeReviewJobId=...) -> findingsSummaries
   * The diff object in S3 MUST have a .patch extension (not .diff).
 
-Prerequisites configured out of band (see README):
+Prerequisites configured out of band (see docs/WALKTHROUGH.md):
   * A Security Agent Agent Space with code review enabled.
   * A code review resource for the target repo, full source uploaded to the S3
     bucket connected to that Agent Space (provides repo context).

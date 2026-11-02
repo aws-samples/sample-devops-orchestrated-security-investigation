@@ -14,7 +14,7 @@
 # updated in place.
 #
 # Usage (from the root of this repo):
-#   export AGENT_RUNTIME_ARN=...   # README step e.4
+#   export AGENT_RUNTIME_ARN=...   # docs/WALKTHROUGH.md step e.4
 #   ./scripts/create-sigv4-role.sh
 #
 # Sandbox only.
@@ -22,13 +22,13 @@ set -euo pipefail
 
 REGION="${REGION:-us-east-1}"
 NAME_PREFIX="${NAME_PREFIX:-nimbus}"
-AGENT_RUNTIME_ARN="${AGENT_RUNTIME_ARN:?export AGENT_RUNTIME_ARN first (README step e.4)}"
+AGENT_RUNTIME_ARN="${AGENT_RUNTIME_ARN:?export AGENT_RUNTIME_ARN first (docs/WALKTHROUGH.md step e.4)}"
 ROLE_NAME="${NAME_PREFIX}-devops-to-bridge"
 
 case "$AGENT_RUNTIME_ARN" in
   arn:aws:bedrock-agentcore:*:runtime/*) ;;
   *) echo "Error: AGENT_RUNTIME_ARN does not look like a runtime ARN: $AGENT_RUNTIME_ARN" >&2
-     echo "Re-run the lookup in README step e.4 (it must not print None)." >&2
+     echo "Re-run the lookup in docs/WALKTHROUGH.md step e.4 (it must not print None)." >&2
      exit 1 ;;
 esac
 
@@ -86,7 +86,7 @@ cat <<EOF
 
 SigV4 role ready: $ROLE_ARN
 
-Next (README step f):
+Next (docs/WALKTHROUGH.md step f):
   export SIGV4_ROLE_ARN=$ROLE_ARN
   ./scripts/register-remote-agent.sh
 EOF

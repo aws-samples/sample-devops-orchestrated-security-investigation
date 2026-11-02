@@ -8,7 +8,7 @@
 # This does NOT remove everything. The webhook secret, the SigV4 IAM role,
 # objects/buckets in S3, the remote-agent registration, and the two managed
 # Agent Spaces must be removed manually. See the full "Tear down" checklist in
-# README.md (Steps 2-4) so nothing is left running.
+# docs/TEARDOWN.md (Steps 2-4) so nothing is left running.
 set -euo pipefail
 
 REGION="${REGION:-us-east-1}"
@@ -72,7 +72,7 @@ cat <<EOF
 
 Stack, app ECR repo, task-definition revisions and forwarder log group removed.
 
-STILL TO REMOVE MANUALLY (see README.md "Tear down" Steps 2-4 for commands):
+STILL TO REMOVE MANUALLY (see docs/TEARDOWN.md Steps 2-4 for commands):
   * A2A bridge runtime + its AgentCore CFN stack + its log group, unless you set
     BRIDGE_RUNTIME_ID / BRIDGE_STACK above (the AgentCore CLI has no 'destroy';
     use 'aws bedrock-agentcore-control delete-agent-runtime' then delete the

@@ -130,7 +130,7 @@ echo "$AGENT_RUNTIME_ARN"    # must print an arn:aws:bedrock-agentcore:... value
 
 ## 5. Verify (optional)
 
-Stage the patch first (README step c.4), then:
+Stage the patch first (docs/WALKTHROUGH.md step c.4), then:
 
 ```bash
 agentcore invoke --prompt "Start a security review of the staged change for the nimbus-notes service."
@@ -141,7 +141,7 @@ seconds) and then keeps calling `get_security_findings` until the review
 finishes, so the command shows "Invoking Agent" for the whole review —
 typically 10-15 minutes. The CLI may time out first with `A2A invoke failed`;
 the review keeps running. Check its status and findings with the
-`aws securityagent` commands in README step g.
+`aws securityagent` commands in docs/WALKTHROUGH.md step g.
 
 During a real delegation this is not a problem: each `get_security_findings`
 call returns within ~45 seconds, under the DevOps Agent's 1-minute A2A idle

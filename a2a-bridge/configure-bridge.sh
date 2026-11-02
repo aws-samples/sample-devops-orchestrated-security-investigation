@@ -14,7 +14,7 @@
 # cdk.json values are overwritten with the current ones.
 #
 # Usage (from the root of this repo, in the same shell where you exported the
-# three values in README step c):
+# three values in docs/WALKTHROUGH.md step c):
 #   ./a2a-bridge/configure-bridge.sh ../NimbusSecBridge
 #
 # Sandbox only.
@@ -23,9 +23,9 @@ set -euo pipefail
 PROJECT="${1:?usage: $0 <path-to-agentcore-project>   (e.g. ../NimbusSecBridge)}"
 AGENT_NAME="${AGENT_NAME:-nimbus_security_review_agent}"
 
-: "${SECURITY_AGENT_SPACE_ID:?export SECURITY_AGENT_SPACE_ID (as-...) first; see README step c}"
-: "${CODE_REVIEW_ID:?export CODE_REVIEW_ID (cr-...) first; see README step c}"
-: "${DIFF_BUCKET:?export DIFF_BUCKET (your Security Agent S3 bucket) first; see README step c}"
+: "${SECURITY_AGENT_SPACE_ID:?export SECURITY_AGENT_SPACE_ID (as-...) first; see docs/WALKTHROUGH.md step c}"
+: "${CODE_REVIEW_ID:?export CODE_REVIEW_ID (cr-...) first; see docs/WALKTHROUGH.md step c}"
+: "${DIFF_BUCKET:?export DIFF_BUCKET (your Security Agent S3 bucket) first; see docs/WALKTHROUGH.md step c}"
 
 # Catch the most common mistake: a placeholder pasted instead of a real value.
 for pair in "SECURITY_AGENT_SPACE_ID=$SECURITY_AGENT_SPACE_ID" \
@@ -151,7 +151,7 @@ cat <<EOF
 
 Bridge project configured: $PROJECT
 
-Next (README step e.4):
+Next (docs/WALKTHROUGH.md step e.4):
   cd "$PROJECT"
   agentcore deploy --dry-run     # confirm it targets the account/region you expect
   agentcore deploy --yes

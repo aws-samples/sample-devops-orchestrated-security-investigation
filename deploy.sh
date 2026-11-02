@@ -44,7 +44,7 @@ echo "Deploying into account $ACCOUNT, region $REGION (sandbox confirmed)."
 # the account the DevOps Agent monitors. Requires finch or Docker locally.
 if ! command -v "$CONTAINER_CLI" >/dev/null 2>&1; then
   echo "Container runtime '$CONTAINER_CLI' not found. Install finch or Docker, " >&2
-  echo "or set CONTAINER_CLI=docker. (Image must be built locally; see README.)" >&2
+  echo "or set CONTAINER_CLI=docker. (Image must be built locally; see docs/WALKTHROUGH.md.)" >&2
   exit 1
 fi
 
@@ -80,7 +80,7 @@ if ! aws secretsmanager describe-secret --secret-id "$WEBHOOK_SECRET_ID" --regio
 Missing webhook secret "$WEBHOOK_SECRET_ID".
 
 Configure a generic webhook in your DevOps Agent Agent Space (HMAC, in
-region $REGION), then store the URL and signing secret as shown in README
+region $REGION), then store the URL and signing secret as shown in docs/WALKTHROUGH.md
 step b (the secret is read from a prompt so it stays out of shell history).
 
 Then re-run deploy.
@@ -139,15 +139,15 @@ App deploy complete.
 
 The APP half is up. Now wire the agents and run the demo:
 
-  1. Deploy the A2A bridge (README step e): agentcore create, then
+  1. Deploy the A2A bridge (docs/WALKTHROUGH.md step e): agentcore create, then
         ./a2a-bridge/configure-bridge.sh ../NimbusSecBridge
      then agentcore deploy --yes, and capture AGENT_RUNTIME_ARN.
 
-  2. Create the SigV4 role and register the bridge (README step f):
+  2. Create the SigV4 role and register the bridge (docs/WALKTHROUGH.md step f):
         ./scripts/create-sigv4-role.sh
         ./scripts/register-remote-agent.sh
 
-  3. Trip the incident with one command (README step h):
+  3. Trip the incident with one command (docs/WALKTHROUGH.md step h):
         AGENT_SPACE_ID=<devops-agent-space-id> ./app/break-it.sh
      It deploys the bad revision, generates the 5xx traffic, and -- if this
      machine cannot reach the ALB -- starts the investigation directly.
@@ -156,6 +156,6 @@ The APP half is up. Now wire the agents and run the demo:
      fold the Security Agent findings into one investigation. Revert with
      ./app/fix-it.sh.
 
-Tear down when done:  ./teardown.sh   (and see README "Tear down" for the rest)
+Tear down when done:  ./teardown.sh   (and see docs/TEARDOWN.md for the rest)
 ================================================================================
 EOF
