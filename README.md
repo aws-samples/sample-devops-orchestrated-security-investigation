@@ -148,8 +148,7 @@ the Security Agent review about 10-15 minutes.
 ├── docs/
 │   ├── WALKTHROUGH.md             # full deploy-and-run steps (a-i)
 │   ├── TEARDOWN.md                # full teardown checklist
-│   ├── architecture.png           # the architecture diagram embedded above
-│   └── architecture_diagram.py    # regenerates the diagram from the official AWS icons
+│   └── architecture.png           # the architecture diagram embedded above
 ├── app/                           # the deliberately-flawed Flask app
 │   ├── app.py                     # ALB→Fargate→DynamoDB service; the vulnerable route
 │   ├── Dockerfile                 # image built locally by deploy.sh
