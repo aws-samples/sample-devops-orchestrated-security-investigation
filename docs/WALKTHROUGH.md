@@ -75,7 +75,7 @@ into shared places.
 > like `cr-...`, and the DevOps Agent space id). The most reliable source is the
 > **console URL**: open the resource in its console and copy the id from the
 > address bar (e.g. `.../agent-spaces/as-...`, `.../code-reviews/cr-...`). CLI
-> `list` commands exist too, but these are preview-era services whose CLI shapes
+> `list` commands exist too, but these are newer services whose CLI shapes may
 > change — if a `list` command errors or returns nothing, use the console URL.
 
 ### a. Set your profile and region
