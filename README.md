@@ -6,7 +6,7 @@
 > demonstration — **not for production**. Do not run it in a shared or
 > production account. See [`SECURITY.md`](SECURITY.md) for the planted-regression
 > inventory and [`THREAT-MODEL.md`](THREAT-MODEL.md) for the sandbox guards and
-> blast-radius fence.
+> scope.
 
 > ⚠️ **NOT for Production Deployments**
 >
@@ -138,7 +138,7 @@ the Security Agent review about 10-15 minutes.
 .
 ├── README.md                      # this file
 ├── SECURITY.md                    # planted-regression inventory; how to report real issues
-├── THREAT-MODEL.md                # sandbox guards, blast-radius fence, teardown guarantees
+├── THREAT-MODEL.md                # sandbox guards, scope, teardown guarantees
 ├── CONTRIBUTING.md                # how to contribute; security issue notifications
 ├── CODE_OF_CONDUCT.md             # Amazon Open Source Code of Conduct
 ├── LICENSE                        # MIT-0
@@ -212,8 +212,8 @@ This sample is intentionally vulnerable for demonstration. See:
 
 - [`SECURITY.md`](SECURITY.md) — the planted-regression inventory and how to
   report a genuine (non-intentional) issue.
-- [`THREAT-MODEL.md`](THREAT-MODEL.md) — the sandbox guards, blast-radius fence,
-  and teardown guarantees.
+- [`THREAT-MODEL.md`](THREAT-MODEL.md) — the sandbox guards, scope, and
+  teardown guarantees.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md#security-issue-notifications) — how to
   report a potential security issue in this sample.
 

@@ -2,7 +2,7 @@
 
 This is the gating artifact for publishing this security-flavoured sample. It
 documents what the sample deploys, what could go wrong, and the controls that
-keep the blast radius inside a disposable sandbox account.
+keep its scope limited to a disposable sandbox account.
 
 ## 1. What this sample is
 
@@ -49,7 +49,7 @@ sample code, MIT-0, not for production.
 | Secrets leaking into the repo or stack outputs | `scripts/lint-repo.sh` blocks hard-coded account IDs, access keys, routable IPs, and absolute home paths, and fails if a check cannot run; no secret in stack outputs |
 | Resources left running and costing money | 7-day log retention. `teardown.sh` deletes the app stack, the app ECR repository, task-definition revisions, the forwarder log group, and (when given the ids) the bridge runtime, its log group, and its stack. `docs/TEARDOWN.md` lists the remaining manual removals (secret, SigV4 role, S3 bucket, CDK bootstrap, console registrations, Agent Spaces) |
 
-## 5. Blast-radius fence
+## 5. Scope
 
 - One account, one deployment region, sandbox only (model inference may be
   served cross-Region, see §3).
